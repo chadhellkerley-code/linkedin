@@ -10,8 +10,10 @@ components of the application.  When the application starts it will call
 ``init_db`` to ensure all required tables exist.
 """
 
+"""Database helpers and schema definition for the LinkedIn CLI."""
+
 import sqlite3
-from typing import Iterator, Tuple
+from typing import Dict, Iterable
 
 
 def init_db(db_path: str) -> None:
@@ -43,13 +45,21 @@ def init_db(db_path: str) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_id INTEGER NOT NULL,
             username TEXT NOT NULL,
+            alias TEXT,
             password TEXT,
+            proxy TEXT,
             status TEXT NOT NULL DEFAULT 'viva',
             session_data TEXT,
+            last_activity TEXT,
+            last_message_at TEXT,
+            last_error TEXT,
+            cooldown_until TEXT,
             FOREIGN KEY(group_id) REFERENCES account_groups(id)
         )
         """
     )
+
+    _ensure_account_columns(cur)
 
     # Table of lead groups. A lead group holds a collection of leads (profiles) to
     # contact. The same lead may exist in multiple groups if necessary.
@@ -129,3 +139,41 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _ensure_account_columns(cur: sqlite3.Cursor) -> None:
+    """Ensure newer optional account columns exist (idempotent)."""
+
+    existing = _table_columns(cur, "accounts")
+    columns: Dict[str, str] = {
+        "alias": "TEXT",
+        "proxy": "TEXT",
+        "last_activity": "TEXT",
+        "last_message_at": "TEXT",
+        "last_error": "TEXT",
+        "cooldown_until": "TEXT",
+    }
+    for name, definition in columns.items():
+        if name not in existing:
+            cur.execute(f"ALTER TABLE accounts ADD COLUMN {name} {definition}")
+
+    if "message_templates" not in _tables(cur):
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS message_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                content TEXT NOT NULL
+            )
+            """
+        )
+
+
+def _table_columns(cur: sqlite3.Cursor, table: str) -> Iterable[str]:
+    cur.execute(f"PRAGMA table_info({table})")
+    return [row[1] for row in cur.fetchall()]
+
+
+def _tables(cur: sqlite3.Cursor) -> Iterable[str]:
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    return [row[0] for row in cur.fetchall()]

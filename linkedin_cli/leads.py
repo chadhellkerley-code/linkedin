@@ -12,8 +12,12 @@ an optional note.
 import csv
 import os
 import sqlite3
-from typing import List, Optional
-from .db import get_connection
+from typing import List
+
+try:  # pragma: no cover
+    from .db import get_connection
+except ImportError:  # pragma: no cover
+    from db import get_connection
 
 
 class LeadManager:

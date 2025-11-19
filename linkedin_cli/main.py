@@ -12,12 +12,20 @@ import os
 import sqlite3
 from typing import Tuple
 
-from .db import init_db, get_connection
-from .accounts import AccountManager
-from .leads import LeadManager
-from .messages import MessageSender
-from .autoresponder import AutoResponder
-from .conversations import ConversationManager
+try:  # pragma: no cover
+    from .db import init_db, get_connection
+    from .accounts import AccountManager
+    from .leads import LeadManager
+    from .messages import MessageSender
+    from .autoresponder import AutoResponder
+    from .conversations import ConversationManager
+except ImportError:  # pragma: no cover
+    from db import init_db, get_connection
+    from accounts import AccountManager
+    from leads import LeadManager
+    from messages import MessageSender
+    from autoresponder import AutoResponder
+    from conversations import ConversationManager
 
 
 DB_FILENAME = "data.db"
